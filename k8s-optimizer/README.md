@@ -1,15 +1,47 @@
-# K8s Resource Optimizer
+# Kubernetes Resource Optimizer
 
-## Units
-- CPU: millicores (1000m = 1 vCPU)
-- Memory: MiB
+A FastAPI-based service that analyzes Kubernetes workload resource usage and recommends optimal CPU and memory requests/limits based on configurable safety thresholds.
 
-## Design Decisions
-- Metrics are averages, not p95/p99. A 1.5× safety buffer compensates for hidden spikes.
-- Memory uses wider no-change bands than CPU because OOMKill is fatal; CPU only throttles.
-- A 15% noise gate prevents pod restarts for marginal savings.
-- Workloads with cpu_request=0 or memory_request=0 are best-effort QoS and skipped silently.
-- HPA/VPA interaction is out of scope; this version handles static resource requests only.
+## Features
+- **Smart Sizing**: Recommends resource adjustments based on actual usage and safety buffers.
+- **Noise Gate**: Ignores trivial changes (<15%) to prevent unnecessary pod restarts.
+- **Safety Floors**: Ensures minimum resources (50m CPU, 128Mi Memory) are always maintained.
+- **Prometheus Metrics**: Exposes `recommendations_issued_total` to track optimization actions.
+- **K8s Configurable**: Thresholds and buffers can be tuned via Kubernetes ConfigMap without rebuilding the image.
+
+## Setup & Run Instructions
+
+### Prerequisites
+- Python 3.11+
+- Docker
+- Kubernetes Cluster (Minikube, Docker Desktop, etc.) - Optional for local run
+
+### Local Development
+1. Clone the repository
+2. Install dependencies
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Run the FastAPI server
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+### Docker
+1. Build the image
+   ```bash
+   docker build -t k8s-optimizer:latest .
+   ```
+2. Run the container
+   ```bash
+   docker run -d -p 8000:8000 --name k8s-optimizer k8s-optimizer:latest
+   ```
+
+### Kubernetes
+1. Apply the manifests
+   ```bash
+   kubectl apply -f k8s/
+   ```
 
 ## Assumptions Made
 A comprehensive list of mathematical thresholds, floor constants, and safety buffer calculations is documented in the [`ASSUMPTIONS.md`](ASSUMPTIONS.md) file.
@@ -17,24 +49,11 @@ A comprehensive list of mathematical thresholds, floor constants, and safety buf
 - All incoming Memory requests/usages are measured in **MiB**.
 - A noise-gate of 15% is required to prevent Kubernetes API churn and unnecessary pod restarts.
 
-## Setup & Run Instructions
-
-### Local
-  pip install -r requirements.txt
-  uvicorn app.main:app --reload
-
-### Docker
-  docker build -t k8s-optimizer .
-  docker run -p 8000:8000 k8s-optimizer
-
-### Tests
-  pytest tests/ -v
-
-## API
-- POST /optimize   → accepts workloads list, returns recommendations
-- GET  /health     → liveness probe, returns {"status":"healthy"}
-- GET  /docs       → Swagger UI (auto-generated)
-- GET  /metrics    → Prometheus-compatible telemetry endpoint
+## API Endpoints
+- `POST /optimize`: Accepts a list of workloads and returns optimization recommendations.
+- `GET /health`: Liveness probe for Kubernetes.
+- `GET /metrics`: Prometheus-compatible telemetry endpoint.
+- `GET /docs`: Swagger UI for interactive API exploration.
 
 ## Sample Input / Output
 
