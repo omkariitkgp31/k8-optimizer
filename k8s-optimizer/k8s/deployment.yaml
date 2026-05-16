@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-optimizer
+  labels:
+    app: k8s-optimizer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: k8s-optimizer
+  template:
+    metadata:
+      labels:
+        app: k8s-optimizer
+    spec:
+      containers:
+      - name: k8s-optimizer
+        image: k8s-optimizer:latest
+        imagePullPolicy: Never # Because we are using the local docker image
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: optimizer-config
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 10
